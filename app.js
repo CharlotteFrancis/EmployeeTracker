@@ -13,7 +13,7 @@ const view = _ => {
     {
       type: 'list',
       name: 'action',
-      choices: ['All Employees', 'Employees By Department', 'Employees by Manager'],
+      choices: ['All Employees', 'Employees By Department', 'Employees by Manager', 'Go Back <-'],
       message: 'What would you like to view?'
     }
   ])
@@ -33,12 +33,18 @@ const view = _ => {
         case 'Employees by Manager':
           // query where they select by manager
           break
+        case 'Go Back <-':
+          ask()
+          break
+        default:
+          console.log('error in view switch.')
+          break
       }
     })
     .catch(err => console.log(err))
 }
 
-// view budget of a dpt
+// view budget of a dpt, add to view?
 
 // add function
 const add = _ => {
