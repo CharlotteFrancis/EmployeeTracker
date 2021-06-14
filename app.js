@@ -91,7 +91,25 @@ const view = _ => {
 
 // view budget of a dpt, add to view?
 
-// add function
+// add functions for adding departments and roles
+const addDpt = _ => {
+  inquirer.prompt([
+    {
+      type: 'input',
+      name: 'name',
+      message: 'What is the name of the new department?'
+    }
+  ])
+    .then((answer)=> {
+      db.query('INSERT INTO department SET ?', answer, err => {
+        if (err) {
+          console.log(err)
+        }
+        console.log('Department added!')
+      })
+    })
+}
+// add employee function..
 const add = _ => {
   getEmployees()
     .then((managers) => {
@@ -156,7 +174,40 @@ const add = _ => {
 
 // remove function
 const rm = _ => {
-  // a
+  getEmployees()
+    .then((employees) => {
+      const employeesArray = employees.map((employee) => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id
+      }))
+      // add an option to back out of deleting
+      employeesArray.push({
+        name: 'Go back <-',
+        value: null
+      })
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'choice',
+          choices: employeesArray,
+          message: 'Which employee would you like to delete?'
+        }
+      ])
+        .then(({ choice }) => {
+          const condition = {
+            id: choice
+          }
+
+          db.query('DELETE FROM employee WHERE ?', condition, err => {
+            if (err) {
+              console.log(err)
+            }
+            console.log('Employe deleted.')
+          })
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
 }
 
 // update employee role
