@@ -59,12 +59,14 @@ const view = _ => {
         case 'All Employees':
           // edit this to be a join with dpt and role
           db.query(`
-          SELECT employee.first_name, employee.last_name, role.title, role.salary, department.name
+          SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
           FROM employee
           LEFT JOIN role
           ON employee.role_id = role.id
           LEFT JOIN department
-          ON role.department_id = department.id;
+          ON role.department_id = department.id
+          LEFT JOIN employee manager
+          ON manager.id = employee.manager_id;
           `, (err, employee) => {
             if (err) {
               console.log(err)
@@ -91,7 +93,35 @@ const view = _ => {
 
 // view budget of a dpt, add to view?
 
-// add functions for adding departments and roles
+// add prompt
+const add = _ => {
+  inquirer.prompt([
+    {
+      type: 'list',
+      name: 'choice',
+      choices: ['Add Employee', 'Add Role', 'Add Department', 'Go Back <-'],
+      mesasge: 'What would you like to add?'
+    }
+  ])
+    .then(({ choice }) => {
+      switch (choice) {
+        case 'Add Employee':
+          addEmployee()
+          break
+        case 'Add Role':
+          addRole()
+          break
+        case 'Add Department':
+          addDpt()
+          break
+        default:
+          ask()
+          break
+      }
+    })
+    .catch(err => console.log(err))
+}
+// add functions for adding departments
 const addDpt = _ => {
   inquirer.prompt([
     {
@@ -109,8 +139,15 @@ const addDpt = _ => {
       })
     })
 }
+// add for role
+const addRole = _ => {
+  // Theres this girl that I kinda like but I'm not sure what to do idk if she even thinks of me
+  // the same way
+  
+}
+
 // add employee function..
-const add = _ => {
+const addEmployee = _ => {
   getEmployees()
     .then((managers) => {
       // map managers into parsable array for prompt
