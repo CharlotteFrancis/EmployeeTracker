@@ -93,8 +93,66 @@ const view = _ => {
 
 // add function
 const add = _ => {
-  // a
+  getEmployees()
+    .then((managers) => {
+      // map managers into parsable array for prompt
+      const managersArray = managers.map((manager) => ({
+        name: `${manager.first_name} ${manager.last_name}`,
+        value: manager.id
+      }))
+      // add no manager option
+      managersArray.push({
+        name: 'No Manager',
+        value: null
+      })
+      getRoles()
+        .then((roles) => {
+          // map roles into parsable array for prompt
+          const rolesArray = roles.map((role) => ({
+            name: role.title,
+            value: role.id
+          }))
+
+          inquirer.prompt([
+            {
+              type: 'input',
+              name: 'first_name',
+              message: 'What is the new employee\'s first name?'
+            },
+            {
+              type: 'input',
+              name: 'last_name',
+              message: 'What is the new employee\'s last name?'
+            },
+            {
+              type: 'list',
+              name: 'role_id',
+              choices: rolesArray,
+              message: 'What is the new employee\'s role?'
+            },
+            {
+              type: 'list',
+              name: 'manager_id',
+              choices: managersArray,
+              message: 'Who is the new employee\'s manager?'
+            }
+          ])
+            .then((answer) => {
+              // add into employee db now
+              db.query('INSERT INTO employee SET ?', answer, err => {
+                if (err) {
+                  console.log(err)
+                }
+                console.log('Employee added!')
+              })
+            })
+            .catch(err => console.log(err))
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
 }
+// end add
 
 // remove function
 const rm = _ => {
@@ -215,14 +273,6 @@ const update = _ => {
         .catch(err => console.log(err))
     })
     .catch(err => console.log(err))
-
-  //
-  // db.query('UPDATE employee SET ? WHERE ?', condition, err => {
-  //   if (err) {
-  //     console.log(err)
-  //   }
-  // })
-  //
 }
 // END UPDATE
 
