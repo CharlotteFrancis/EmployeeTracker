@@ -67,7 +67,7 @@ const view = _ => {
     {
       type: 'list',
       name: 'action',
-      choices: ['All Employees', 'All Roles', 'All Departments', 'Employees By Department', 'Employees by Manager', 'Go Back <-'],
+      choices: ['All Employees', 'All Roles', 'All Departments', 'Employees By Department', 'Employees by Manager', 'Budget', 'Go Back <-'],
       message: 'What would you like to view?'
     }
   ])
@@ -145,6 +145,10 @@ const view = _ => {
           })
           askAgain()
           break
+        case 'Budget':
+          // list of departments, display employees associated with inner join, add salaries.
+          calcBudget()
+          break
         case 'Go Back <-':
           ask()
           break
@@ -157,6 +161,53 @@ const view = _ => {
 }
 
 // view budget of a dpt, add to view?
+const calcBudget = _ => {
+  getDpt()
+    // declare array to be parsed by inquirer
+    .then((departments) => {
+      const dptArray = departments.map((department) => ({
+        name: department.name,
+        value: department.id
+      }))
+      // prompt
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'id',
+          choices: dptArray,
+          message: 'Which department would you like to see the budget of?'
+        }
+      ])
+        .then(({ id }) => {
+          db.query(`
+            SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.salary
+            FROM employee
+            LEFT JOIN role
+            ON role.id = employee.role_id
+            INNER JOIN department
+            ON department.id = role.department_id
+            WHERE department.id = ${id}
+          `, (err, salaries) => {
+            if (err) {
+              console.log(err)
+            }
+            if (salaries === []) {
+              console.log('') // show if empty stuff here
+            } else {
+              let sum = 0
+              salaries.forEach((person) => {
+                sum += parseInt(person.salary)
+              })
+              console.log(`The total budget of the ${salaries[0].department} department is $${sum}.\n`)
+              askAgain()
+            }
+            // console.log(salaries)
+          })
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
+}
 
 // add prompt
 const add = _ => {
