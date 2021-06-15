@@ -4,6 +4,23 @@ const db = mysql.createConnection('mysql://root:rootroot@localhost:3306/employee
 require('console.table')
 
 // ask again
+const askAgain = _ => {
+  inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'cont',
+      message: 'Would you like to make another query?'
+    }
+  ])
+    .then(({ cont }) => {
+      if (cont) {
+        ask()
+      } else {
+        process.exit()
+      }
+    })
+    .catch(err => console.log(err))
+}
 
 // get employees
 async function getEmployees () {
@@ -44,13 +61,13 @@ async function getDpt () {
   return response
 }
 
-// view function
+// view function // add view all roles, and add view all dpt
 const view = _ => {
   inquirer.prompt([
     {
       type: 'list',
       name: 'action',
-      choices: ['All Employees', 'Employees By Department', 'Employees by Manager', 'Go Back <-'],
+      choices: ['All Employees', 'All Roles', 'All Departments', 'Employees By Department', 'Employees by Manager', 'Go Back <-'],
       message: 'What would you like to view?'
     }
   ])
@@ -59,26 +76,74 @@ const view = _ => {
         case 'All Employees':
           // edit this to be a join with dpt and role
           db.query(`
-          SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
-          FROM employee
-          LEFT JOIN role
-          ON employee.role_id = role.id
-          LEFT JOIN department
-          ON role.department_id = department.id
-          LEFT JOIN employee manager
-          ON manager.id = employee.manager_id;
+            SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
+            FROM employee
+            LEFT JOIN role
+            ON employee.role_id = role.id
+            LEFT JOIN department
+            ON role.department_id = department.id
+            LEFT JOIN employee manager
+            ON manager.id = employee.manager_id;
           `, (err, employee) => {
             if (err) {
               console.log(err)
             }
             console.table(employee)
+            askAgain()
+          })
+          break
+        case 'All Roles':
+          // all roles
+          db.query('SELECT * FROM role', (err, roles) => {
+            if (err) {
+              console.log(err)
+            }
+            console.table(roles)
+            askAgain()
+          })
+          break
+        case 'All Departments':
+          // all dpt
+          db.query('SELECT * FROM department', (err, dpts) => {
+            if (err) {
+              console.log(err)
+            }
+            console.table(dpts)
+            askAgain()
           })
           break
         case 'Employees By Department':
           // potentially another query where they select by dpt.
+          db.query(`
+            SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name
+            FROM department
+            LEFT JOIN role
+            ON department.id = role.department_id
+            RIGHT JOIN employee
+            ON role.id = employee.role_id
+          `, (err, employee) => {
+            if (err) {
+              console.log(err)
+            }
+            console.table(employee)
+            askAgain()
+          })
           break
         case 'Employees by Manager':
           // query where they select by manager
+          db.query(`
+            SELECT CONCAT(manager.first_name, ' ', manager.last_name) AS manager, CONCAT(employee.first_name, ' ', employee.last_name) AS name
+            FROM employee manager
+            INNER JOIN employee
+            on manager.id = employee.manager_id
+          `, (err, managers) => {
+            if (err) {
+              console.log(err)
+            }
+            console.table(managers)
+            askAgain()
+          })
+          askAgain()
           break
         case 'Go Back <-':
           ask()
@@ -130,7 +195,7 @@ const addDpt = _ => {
       message: 'What is the name of the new department?'
     }
   ])
-    .then((answer)=> {
+    .then((answer) => {
       db.query('INSERT INTO department SET ?', answer, err => {
         if (err) {
           console.log(err)
@@ -138,12 +203,43 @@ const addDpt = _ => {
         console.log('Department added!')
       })
     })
+  askAgain()
 }
 // add for role
 const addRole = _ => {
-  // Theres this girl that I kinda like but I'm not sure what to do idk if she even thinks of me
-  // the same way
-  
+  getDpt()
+    .then((departments) => {
+      const dptArray = departments.map((department) => ({
+        name: department.name,
+        value: department.id
+      }))
+      inquirer.prompt([
+        {
+          type: 'input',
+          name: 'title',
+          message: 'What is the title of the new role?'
+        },
+        {
+          type: 'input',
+          name: 'salary',
+          message: 'What is the salary of the new role?'
+        },
+        {
+          type: 'list',
+          name: 'department_id',
+          choices: dptArray,
+          message: 'What department does the new role belong to?'
+        }
+      ])
+        .then((answer) => {
+          db.query('INSERT INTO role SET ?', answer, err => {
+            if (err) { console.log(err) }
+          })
+          askAgain()
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
 }
 
 // add employee function..
@@ -199,6 +295,7 @@ const addEmployee = _ => {
                   console.log(err)
                 }
                 console.log('Employee added!')
+                askAgain()
               })
             })
             .catch(err => console.log(err))
@@ -231,16 +328,20 @@ const rm = _ => {
         }
       ])
         .then(({ choice }) => {
-          const condition = {
-            id: choice
-          }
-
-          db.query('DELETE FROM employee WHERE ?', condition, err => {
-            if (err) {
-              console.log(err)
+          if (choice === null) {
+            ask()
+          } else {
+            const condition = {
+              id: choice
             }
-            console.log('Employe deleted.')
-          })
+            db.query('DELETE FROM employee WHERE ?', condition, err => {
+              if (err) {
+                console.log(err)
+              }
+              console.log('Employe deleted.')
+              askAgain()
+            })
+          }
         })
         .catch(err => console.log(err))
     })
@@ -305,6 +406,7 @@ const update = _ => {
                           console.log(err)
                         }
                         console.log('updated!')
+                        askAgain()
                       })
                     })
                     .catch(err => console.log(err))
@@ -347,6 +449,7 @@ const update = _ => {
                           console.log(err)
                         }
                         console.log('updated!')
+                        askAgain()
                       })
                     })
                     .catch(err => console.log(err))
@@ -371,15 +474,15 @@ const ask = _ => {
     {
       type: 'list',
       name: 'action',
-      choices: ['View Employees', 'Add Employee', 'Remove', 'Update Employee']
+      choices: ['View', 'Add', 'Remove', 'Update Employee']
     }
   ])
     .then(({ action }) => {
       switch (action) {
-        case 'View Employees':
+        case 'View':
           view()
           break
-        case 'Add Employee':
+        case 'Add':
           add()
           break
         case 'Remove':
