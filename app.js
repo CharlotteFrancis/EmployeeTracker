@@ -13,6 +13,7 @@ const askAgain = _ => {
     }
   ])
     .then(({ cont }) => {
+      // if yes then prompt again, if not then exit
       if (cont) {
         ask()
       } else {
@@ -24,6 +25,7 @@ const askAgain = _ => {
 
 // get employees
 async function getEmployees () {
+  // async function, select * from employee
   const response = await new Promise((resolve, reject) => {
     db.query('SELECT * FROM employee', (err, employee) => {
       if (err) {
@@ -32,6 +34,7 @@ async function getEmployees () {
       resolve(employee)
     })
   })
+  // return array of employees
   return response
 }
 
@@ -45,6 +48,7 @@ async function getRoles () {
       resolve(role)
     })
   })
+  // array of roles
   return response
 }
 
@@ -58,10 +62,11 @@ async function getDpt () {
       resolve(department)
     })
   })
+  // array of departments
   return response
 }
 
-// view function // add view all roles, and add view all dpt
+// view function
 const view = _ => {
   inquirer.prompt([
     {
@@ -74,7 +79,7 @@ const view = _ => {
     .then(({ action }) => {
       switch (action) {
         case 'All Employees':
-          // edit this to be a join with dpt and role
+          // potentially move this into its own function
           db.query(`
             SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
             FROM employee
@@ -113,7 +118,7 @@ const view = _ => {
           })
           break
         case 'Employees By Department':
-          // potentially another query where they select by dpt.
+          // potentially move to its own function
           db.query(`
             SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name
             FROM department
@@ -146,7 +151,7 @@ const view = _ => {
           askAgain()
           break
         case 'Budget':
-          // list of departments, display employees associated with inner join, add salaries.
+          // list of departments, display employees associated with inner join, add salaries together, return.
           calcBudget()
           break
         case 'Go Back <-':
@@ -160,7 +165,7 @@ const view = _ => {
     .catch(err => console.log(err))
 }
 
-// view budget of a dpt, add to view?
+// view budget of a dpt, add then output
 const calcBudget = _ => {
   getDpt()
     // declare array to be parsed by inquirer
@@ -169,7 +174,7 @@ const calcBudget = _ => {
         name: department.name,
         value: department.id
       }))
-      // prompt
+      // prompt which dpt
       inquirer.prompt([
         {
           type: 'list',
@@ -179,6 +184,7 @@ const calcBudget = _ => {
         }
       ])
         .then(({ id }) => {
+          // get the array of employees salaries from the selected dpt
           db.query(`
             SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.salary
             FROM employee
@@ -192,8 +198,11 @@ const calcBudget = _ => {
               console.log(err)
             }
             if (salaries === []) {
-              console.log('') // show if empty stuff here
+              // if department is empty
+              console.log('Selected department has no employees, budget is $0')
+              askAgain()
             } else {
+              // add up salaries and output
               let sum = 0
               salaries.forEach((person) => {
                 sum += parseInt(person.salary)
@@ -201,7 +210,6 @@ const calcBudget = _ => {
               console.log(`The total budget of the ${salaries[0].department} department is $${sum}.\n`)
               askAgain()
             }
-            // console.log(salaries)
           })
         })
         .catch(err => console.log(err))
@@ -237,7 +245,8 @@ const add = _ => {
     })
     .catch(err => console.log(err))
 }
-// add functions for adding departments
+
+// add function for adding departments
 const addDpt = _ => {
   inquirer.prompt([
     {
@@ -256,6 +265,7 @@ const addDpt = _ => {
     })
   askAgain()
 }
+
 // add for role
 const addRole = _ => {
   getDpt()
