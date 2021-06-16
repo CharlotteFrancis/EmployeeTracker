@@ -148,7 +148,6 @@ const view = _ => {
             console.table(managers)
             askAgain()
           })
-          askAgain()
           break
         case 'Budget':
           // list of departments, display employees associated with inner join, add salaries together, return.
