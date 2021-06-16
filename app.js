@@ -77,25 +77,10 @@ const view = _ => {
     }
   ])
     .then(({ action }) => {
+      // switch statement populated with display functions on switch statement
       switch (action) {
         case 'All Employees':
-          // potentially move this into its own function
-          db.query(`
-            SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
-            FROM employee
-            LEFT JOIN role
-            ON employee.role_id = role.id
-            LEFT JOIN department
-            ON role.department_id = department.id
-            LEFT JOIN employee manager
-            ON manager.id = employee.manager_id;
-          `, (err, employee) => {
-            if (err) {
-              console.log(err)
-            }
-            console.table(employee)
-            askAgain()
-          })
+          allEmployees()
           break
         case 'All Roles':
           // all roles
@@ -118,39 +103,12 @@ const view = _ => {
           })
           break
         case 'Employees By Department':
-          // potentially move to its own function
-          db.query(`
-            SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name
-            FROM department
-            LEFT JOIN role
-            ON department.id = role.department_id
-            RIGHT JOIN employee
-            ON role.id = employee.role_id
-          `, (err, employee) => {
-            if (err) {
-              console.log(err)
-            }
-            console.table(employee)
-            askAgain()
-          })
+          viewByDpt()
           break
         case 'Employees by Manager':
-          // query where they select by manager
-          db.query(`
-            SELECT CONCAT(manager.first_name, ' ', manager.last_name) AS manager, CONCAT(employee.first_name, ' ', employee.last_name) AS name
-            FROM employee manager
-            INNER JOIN employee
-            on manager.id = employee.manager_id
-          `, (err, managers) => {
-            if (err) {
-              console.log(err)
-            }
-            console.table(managers)
-            askAgain()
-          })
+          viewByManager()
           break
         case 'Budget':
-          // list of departments, display employees associated with inner join, add salaries together, return.
           calcBudget()
           break
         case 'Go Back <-':
@@ -164,7 +122,63 @@ const view = _ => {
     .catch(err => console.log(err))
 }
 
+// view all employees
+const allEmployees = _ => {
+  db.query(`
+    SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS name, role.title, role.salary, department.name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
+    FROM employee
+    LEFT JOIN role
+    ON employee.role_id = role.id
+    LEFT JOIN department
+    ON role.department_id = department.id
+    LEFT JOIN employee manager
+    ON manager.id = employee.manager_id;
+    `, (err, employee) => {
+    if (err) {
+      console.log(err)
+    }
+    console.table(employee)
+    askAgain()
+  })
+}
+
+// view by department
+const viewByDpt = _ => {
+  db.query(`
+    SELECT department.name AS department, CONCAT(employee.first_name, ' ', employee.last_name) AS name
+    FROM department
+    LEFT JOIN role
+    ON department.id = role.department_id
+    RIGHT JOIN employee
+    ON role.id = employee.role_id
+    `, (err, employee) => {
+    if (err) {
+      console.log(err)
+    }
+    console.table(employee)
+    askAgain()
+  })
+}
+
+// view by manager
+const viewByManager = _ => {
+  // query where they select by manager
+  db.query(`
+  SELECT CONCAT(manager.first_name, ' ', manager.last_name) AS manager, CONCAT(employee.first_name, ' ', employee.last_name) AS name
+  FROM employee manager
+  INNER JOIN employee
+  on manager.id = employee.manager_id
+  `, (err, managers) => {
+    if (err) {
+      console.log(err)
+    }
+    console.table(managers)
+    askAgain()
+  })
+}
+
 // view budget of a dpt, add then output
+// list of departments, display employees associated with inner join, add salaries together, return.
 const calcBudget = _ => {
   getDpt()
     // declare array to be parsed by inquirer
@@ -368,6 +382,7 @@ const addEmployee = _ => {
 
 // remove function
 const rm = _ => {
+  // parsable array of employees for inquirer
   getEmployees()
     .then((employees) => {
       const employeesArray = employees.map((employee) => ({
@@ -433,93 +448,104 @@ const update = _ => {
         }
       ])
         .then((answer) => {
+          // switch statement for answer that updates either role or manager.
           switch (answer.updateType) {
             case "Employee's Role":
-              // display a list of roles
-              getRoles()
-                .then((roles) => {
-                  // prompt for what role to select
-                  inquirer.prompt([
-                    {
-                      type: 'list',
-                      name: 'newRole',
-                      choices: roles.map((role) => ({
-                        name: role.title,
-                        value: role.id
-                      })),
-                      message: 'What role would you like to give the employee?'
-                    }
-                  ])
-                    .then(({ newRole }) => {
-                      // update condition
-                      const condition = [
-                        {
-                          role_id: newRole
-                        },
-                        {
-                          id: answer.choice
-                        }
-                      ]
-                      // update query
-                      db.query('UPDATE employee SET ? WHERE ?', condition, err => {
-                        if (err) {
-                          console.log(err)
-                        }
-                        console.log('updated!')
-                        askAgain()
-                      })
-                    })
-                    .catch(err => console.log(err))
-                })
-                .catch(err => console.log(err))
+              updateRole(answer)
               break
             case "Employee's Manager":
-              // display a list of employees(?)
-              getEmployees()
-                .then((managers) => {
-                  const managersArray = managers.map((manager) => ({
-                    name: manager.first_name + ' ' + manager.last_name,
-                    value: manager.id
-                  }))
-                  managersArray.push(({
-                    name: 'No Manager',
-                    value: null
-                  }))
-
-                  inquirer.prompt([
-                    {
-                      type: 'list',
-                      name: 'choice',
-                      choices: managersArray,
-                      message: 'Select a manager.'
-                    }
-                  ])
-                    .then(({ choice }) => {
-                      // update
-                      const condition = [
-                        {
-                          manager_id: choice
-                        },
-                        {
-                          id: answer.choice
-                        }
-                      ]
-                      db.query('UPDATE employee SET ? WHERE ?', condition, err => {
-                        if (err) {
-                          console.log(err)
-                        }
-                        console.log('updated!')
-                        askAgain()
-                      })
-                    })
-                    .catch(err => console.log(err))
-                })
-                .catch(err => console.log(err))
+              updateManager(answer)
               break
             default:
               console.log('Error in update switch statement')
               break
           }
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
+}
+
+// update role function
+const updateRole = answer => {
+  // display a list of roles
+  getRoles()
+    .then((roles) => {
+      // prompt for what role to select
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'newRole',
+          choices: roles.map((role) => ({
+            name: role.title,
+            value: role.id
+          })),
+          message: 'What role would you like to give the employee?'
+        }
+      ])
+        .then(({ newRole }) => {
+          // update condition
+          const condition = [
+            {
+              role_id: newRole
+            },
+            {
+              id: answer.choice
+            }
+          ]
+          // update query
+          db.query('UPDATE employee SET ? WHERE ?', condition, err => {
+            if (err) {
+              console.log(err)
+            }
+            console.log('updated!')
+            askAgain()
+          })
+        })
+        .catch(err => console.log(err))
+    })
+    .catch(err => console.log(err))
+}
+
+// update manager function
+const updateManager = answer => {
+  // display a list of employees
+  getEmployees()
+    .then((managers) => {
+      const managersArray = managers.map((manager) => ({
+        name: manager.first_name + ' ' + manager.last_name,
+        value: manager.id
+      }))
+      // add a no manager option
+      managersArray.push(({
+        name: 'No Manager',
+        value: null
+      }))
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'choice',
+          choices: managersArray,
+          message: 'Select a manager.'
+        }
+      ])
+        .then(({ choice }) => {
+          // update condition for query
+          const condition = [
+            {
+              manager_id: choice
+            },
+            {
+              id: answer.choice
+            }
+          ]
+          db.query('UPDATE employee SET ? WHERE ?', condition, err => {
+            if (err) {
+              console.log(err)
+            }
+            console.log('updated!')
+            askAgain()
+          })
         })
         .catch(err => console.log(err))
     })
@@ -558,4 +584,5 @@ const ask = _ => {
     })
     .catch(err => console.log(err))
 }
+// first inquirer prompt, to get the ball rolling
 ask()
